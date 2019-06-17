@@ -30,6 +30,7 @@
 #include "bitcoin/BitcoinUtils.h"
 #include "bitcoin/StratumBitcoin.h"
 #include "rsk/RskWork.h"
+#include "vcash/VcashWork.h"
 #include "beam/StratumBeam.h"
 
 #include <chainparams.h>
@@ -357,6 +358,7 @@ TEST(Stratum, StratumJobBitcoin) {
         blockVersion,
         "",
         RskWork(),
+        VcashWork(),
         1,
         false);
     ASSERT_EQ(res, true);
@@ -491,6 +493,7 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
         blockVersion,
         "",
         RskWork(),
+        VcashWork(),
         1,
         false);
     ASSERT_EQ(res, true);
@@ -612,6 +615,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
         blockVersion,
         "",
         RskWork(),
+        VcashWork(),
         1,
         false);
     ASSERT_EQ(res, true);
@@ -741,6 +745,7 @@ TEST(Stratum, StratumJobWithRskWork) {
         blockVersion,
         "",
         rskWork,
+        VcashWork(),
         1,
         true);
 
@@ -800,9 +805,10 @@ TEST(Stratum, StratumJobWithRskWork) {
 
         // rsk tx out value
         "0000000000000000"
-        // 0x29 = 41 bytes of second output script containing the rsk merged
-        // mining tag
-        "2952534b424c4f434b3ae6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8"
+        // 0x2b = 43 bytes of second output script containing the rsk merged
+        // mining tag; 0x6a = OP_RETURN
+        "2b6a2952534b424c4f434b3ae6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e"
+        "0ae8"
         "364604e9f8a15d"
 
         // lock_time

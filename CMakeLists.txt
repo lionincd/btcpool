@@ -431,6 +431,7 @@ endif()
 add_subdirectory(3rdparty/libblake2)
 add_subdirectory(3rdparty/libethash)
 add_subdirectory(3rdparty/libsph)
+add_subdirectory(3rdparty/rlpvalue)
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
@@ -439,6 +440,8 @@ if(USE_CUDA)
 else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
+
+add_definitions(-DFMT_HEADER_ONLY)
 
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}/src
@@ -492,6 +495,7 @@ add_library(cuckoo
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
+        src/vcash/*.cc
         src/ssl/*.cc
     )
 file(GLOB LIB_SOURCES_CHAINS
@@ -527,6 +531,7 @@ add_library(
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
 target_link_libraries(btcpool PUBLIC beam cuckoo)
+target_link_libraries(btcpool PUBLIC rlpvalue)
 
 if(BUILD_TESTING)
   file(GLOB_RECURSE TEST_SOURCES test/*.cc)

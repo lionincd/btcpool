@@ -185,7 +185,7 @@ bool JobRepository::setupThreadConsume() {
     return false;
   }
 
-  threadConsume_ = thread(&JobRepository::runThreadConsume, this);
+  threadConsume_ = std::thread(&JobRepository::runThreadConsume, this);
   return true;
 }
 
@@ -740,7 +740,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
       base_,
       StratumServer::listenerCallback,
       (void *)this,
-      LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE,
+      LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE_PORT,
       -1,
       (struct sockaddr *)&sin_,
       sizeof(sin_));

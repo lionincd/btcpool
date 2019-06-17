@@ -21,6 +21,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include <libethash/sha3.h>
 #include "StratumMinerEth.h"
 
 #include "StratumSessionEth.h"
@@ -52,7 +53,7 @@ void StratumMinerEth::handleRequest(
   } else if (method == "eth_submitHashrate") {
     handleRequest_SubmitHashrate(idStr, jparams);
   } else if (method == "mining.submit" || method == "eth_submitWork") {
-    handleRequest_Submit(idStr, jparams);
+    handleRequest_Submit(idStr, jparams, jroot);
   }
 }
 
@@ -72,7 +73,7 @@ void StratumMinerEth::handleRequest_SubmitHashrate(
 }
 
 void StratumMinerEth::handleRequest_Submit(
-    const string &idStr, const JsonNode &jparams) {
+    const string &idStr, const JsonNode &jparams, const JsonNode &jroot) {
 
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
@@ -179,11 +180,22 @@ void StratumMinerEth::handleRequest_Submit(
     }
   }
 
-  uint64_t nonce = stoull(sNonce, nullptr, 16);
+  uint64_t nonce;
+  uint64_t headerPrefix;
+  try {
+    nonce = stoull(sNonce, nullptr, 16);
+    headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
+  } catch (const std::invalid_argument &) {
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
+    return;
+  } catch (const std::out_of_range &) {
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
+    return;
+  }
+
   uint32_t height = sjob->height_;
   uint64_t networkDiff = Eth_TargetToDifficulty(sjob->networkTarget_.GetHex());
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
-  uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
   EthConsensus::Chain chain = sjob->chain_;
 
   auto iter = jobDiffs_.find(localJob);
@@ -223,6 +235,31 @@ void StratumMinerEth::handleRequest_Submit(
     return;
   }
 
+  boost::optional<uint32_t> extraNonce2;
+  uint256 headerHash;
+  if (session.hasExtraNonce2()) {
+    if (!sjob->hasHeader()) {
+      handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, localJob->chainId_);
+      return;
+    } else {
+      auto &jsonRoot = const_cast<JsonNode &>(jroot);
+      if (jsonRoot["extra_nonce"].type() == Utilities::JS::type::Str) {
+        extraNonce2 = jsonRoot["extra_nonce"].uint32_hex();
+      } else {
+        extraNonce2 = 0;
+      }
+      auto headerBin = sjob->getHeaderWithExtraNonce(extraNonce1, extraNonce2);
+      ethash_h256_t hash;
+      SHA3_256(
+          &hash,
+          reinterpret_cast<const uint8_t *>(headerBin.data()),
+          headerBin.size());
+      headerHash = Ethash256ToUint256(hash);
+    }
+  } else {
+    headerHash.SetHex(sHeader);
+  }
+
   // The mixHash is used to submit the work to the Ethereum node.
   // We don't need to pay attention to whether the mixHash submitted
   // by the miner is correct, because we recalculated it.
@@ -234,7 +271,7 @@ void StratumMinerEth::handleRequest_Submit(
       share,
       localJob->jobId_,
       nonce,
-      uint256S(sHeader),
+      headerHash,
       jobDiff.jobDiffs_,
       shareMixHash,
       worker.fullName_));
@@ -250,6 +287,15 @@ void StratumMinerEth::handleRequest_Submit(
   if (handleShare(
           idStr, share.status(), share.sharediff(), localJob->chainId_)) {
     if (StratumStatus::isSolved(share.status())) {
+      string extraNonce;
+      if (sjob->hasHeader()) {
+        if (extraNonce2) {
+          extraNonce = fmt::format(
+              ",\"extraNonce\":\"0x{:08x}{:08x}\"", extraNonce1, *extraNonce2);
+        } else {
+          extraNonce = fmt::format(",\"extraNonce\":\"0x{:08x}\"", extraNonce1);
+        }
+      }
       server.sendSolvedShare2Kafka(
           localJob->chainId_,
           sNonce,
@@ -259,7 +305,7 @@ void StratumMinerEth::handleRequest_Submit(
           networkDiff,
           worker,
           chain,
-          boost::make_optional(!sjob->header_.empty(), extraNonce1));
+          extraNonce);
       // mark jobs as stale
       server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
     }

@@ -34,6 +34,7 @@
 struct NodeDefinition {
   string rpcAddr_;
   string rpcUserPwd_;
+  mutable bool parity_;
 };
 
 struct BlockMakerDefinition {
@@ -42,6 +43,7 @@ struct BlockMakerDefinition {
   vector<NodeDefinition> nodes;
   string solvedShareTopic_;
   string foundAuxBlockTable_;
+  // String vcashFoundBlockTable_;
 
   virtual ~BlockMakerDefinition() {}
 };

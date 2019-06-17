@@ -34,8 +34,9 @@ class GbtMaker {
   atomic<bool> running_;
   mutex lock_;
 
-  zmq::context_t zmqContext_;
+  std::unique_ptr<zmq::context_t> zmqContext_;
   string zmqBitcoindAddr_;
+  uint32_t zmqTimeout_;
 
   string bitcoindRpcAddr_;
   string bitcoindRpcUserpass_;
@@ -49,8 +50,6 @@ class GbtMaker {
   string kafkaRawGbtTopic_;
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
-
-  bool checkBitcoindZMQ();
 
   bool bitcoindRpcGBT(string &resp);
   string makeRawGbtMsg();
@@ -69,6 +68,7 @@ class GbtMaker {
 public:
   GbtMaker(
       const string &zmqBitcoindAddr,
+      uint32_t zmqTimeout,
       const string &bitcoindRpcAddr,
       const string &bitcoindRpcUserpass,
       const string &kafkaBrokers,
@@ -93,8 +93,9 @@ class NMCAuxBlockMaker {
   atomic<bool> running_;
   mutex lock_;
 
-  zmq::context_t zmqContext_;
+  std::unique_ptr<zmq::context_t> zmqContext_;
   string zmqNamecoindAddr_;
+  uint32_t zmqTimeout_;
 
   string rpcAddr_;
   string rpcUserpass_;
@@ -109,7 +110,6 @@ class NMCAuxBlockMaker {
   string coinbaseAddress_; // nmc coinbase payout address
   bool useCreateAuxBlockInterface_;
 
-  bool checkNamecoindZMQ();
   bool callRpcCreateAuxBlock(string &resp);
   string makeAuxBlockMsg();
 
@@ -121,6 +121,7 @@ class NMCAuxBlockMaker {
 public:
   NMCAuxBlockMaker(
       const string &zmqNamecoindAddr,
+      uint32_t zmqTimeout,
       const string &rpcAddr,
       const string &rpcUserpass,
       const string &kafkaBrokers,
